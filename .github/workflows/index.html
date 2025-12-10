@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora de Potência de Fresamento</title>
+    <!-- Carregamento do Tailwind CSS para estilização moderna e responsiva -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Estilos personalizados */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fb;
+        }
+        .input-group label {
+            font-weight: 500;
+            color: #333;
+        }
+        .input-group input:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 1px #3b82f6;
+        }
+        .result-box {
+            background-color: #ffffff;
+            border-left: 4px solid #3b82f6;
+            transition: all 0.3s ease;
+        }
+        .result-box.error {
+            border-left: 4px solid #ef4444;
+        }
+        /* Estilo para fórmulas exibidas (sintaxe ASCII simples) */
+        .math-formula {
+            font-family: monospace;
+            white-space: pre-wrap;
+            font-size: 0.85rem; /* Levemente menor para fórmulas longas */
+        }
+        /* Símbolos na interface principal */
+        .symbol-phi::before { content: "\u03D5"; } /* Greek PHI Symbol */
+        .symbol-kappa::before { content: "\u03BA"; } /* Greek KAPPA Symbol */
+        .symbol-eta::before { content: "\u03B7"; } /* Greek ETA Symbol */
+
+        /* Estilos de carregamento */
+        .loading-animation {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #3b82f6;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="p-4 sm:p-8">
+
+    <div class="max-w-4xl mx-auto bg-white shadow-2xl rounded-xl p-6 md:p-10">
+        
+        <header class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-800 border-b-2 pb-2 mb-2">
+                Potência do Motor: Fresamento Periférico (Kienzle)
+            </h1>
+            <p class="text-gray-600">
+                Insira os parâmetros de corte para calcular a Força de Corte (F<sub>c</sub>), Potência de Corte (P<sub>c</sub>) e Potência do Motor (P<sub>m</sub>).
+            </p>
+        </header>
+
+        <!-- Formulário de Entrada de Dados -->
+        <div id="input-form" class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            
+            <!-- Dados do Material (Kienzle) -->
+            <div class="md:col-span-2 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <h2 class="text-xl font-semibold text-blue-700 mb-3">Constantes de Kienzle (Material)</h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="input-group">
+                        <label for="kc11" class="block text-sm">Constante k<sub>c1.1</sub> (N/mm²)</label>
+                        <input type="number" id="kc11" value="2130" step="0.01" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none text-gray-900">
+                    </div>
+                    <div class="input-group">
+                        <label for="one_minus_mc" class="block text-sm">Expoente 1-m<sub>c</sub></label>
+                        <input type="number" id="one_minus_mc" value="0.82" step="0.01" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none text-gray-900">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Parâmetros da Fresa e Corte -->
+            <div class="md:col-span-2 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <h2 class="text-xl font-semibold text-gray-700 mb-3">Parâmetros de Usinagem</h2>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    <div class="input-group">
+                        <label for="D" class="block text-sm">Diâmetro da Fresa $D$ (mm)</label>
+                        <input type="number" id="D" value="63" step="0.1" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900">
+                    </div>
+                    <div class="input-group">
+                        <label for="Z" class="block text-sm">N° de Dentes $Z$</label>
+                        <input type="number" id="Z" value="7" step="1" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900">
+                    </div>
+                    <div class="input-group">
+                        <label for="ae" class="block text-sm">Largura Radial a<sub>e</sub> (mm)</label>
+                        <input type="number" id="ae" value="28" step="0.1" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900">
+                    </div>
+                    <div class="input-group">
+                        <label for="ap" class="block text-sm">Profundidade Axial a<sub>p</sub> (mm)</label>
+                        <input type="number" id="ap" value="2.8" step="0.1" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900">
+                    </div>
+                    <div class="input-group">
+                        <label for="vc" class="block text-sm">Velocidade de Corte v<sub>c</sub> (m/min)</label>
+                        <input type="number" id="vc" value="280" step="1" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900">
+                    </div>
+                    <div class="input-group">
+                        <label for="fz" class="block text-sm">Avanço por Dente f<sub>z</sub> (mm)</label>
+                        <input type="number" id="fz" value="0.28" step="0.01" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900">
+                    </div>
+                    <div class="input-group">
+                        <label for="kr" class="block text-sm">Ângulo do Gume k<sub>r</sub> (graus)</label>
+                        <input type="number" id="kr" value="90" step="1" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900">
+                    </div>
+                    <div class="input-group">
+                        <label for="eta" class="block text-sm">Eficiência &eta; (%)</label>
+                        <input type="number" id="eta" value="90" step="1" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900">
+                    </div>
+                    <div class="input-group md:col-span-2">
+                        <label for="material_name" class="block text-sm">Nome do Material (para Análise)</label>
+                        <input type="text" id="material_name" value="Aço Ck60" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900">
+                    </div>
+                </div>
+            </div>
+            
+            <button onclick="calcularPotencia()" class="md:col-span-2 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg shadow-lg transition duration-150">
+                Calcular Potência
+            </button>
+        </div>
+
+        <!-- Área de Resultados -->
+        <div id="results" class="space-y-6">
+            <h2 class="text-2xl font-semibold text-gray-800 border-b pb-2">Resultados do Cálculo</h2>
+
+            <!-- Resultado Final -->
+            <div id="pm-result" class="result-box p-4 rounded-lg shadow-md flex justify-between items-center">
+                <div>
+                    <p class="text-lg font-bold text-gray-700">Potência do Motor (P<sub>m</sub>):</p>
+                    <p class="text-3xl font-extrabold text-blue-600" id="final-pm-value">
+                        -- kW
+                    </p>
+                </div>
+                <button onclick="falarResultado()" id="tts-button" disabled class="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg shadow-md disabled:opacity-50 transition duration-150">
+                    🗣️ Ler Resultado
+                </button>
+            </div>
+            
+            <!-- Recursos de IA -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <button onclick="analisarParametros()" id="analysis-button" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-lg shadow-md transition duration-150 flex items-center justify-center disabled:opacity-50">
+                    <span id="analysis-text">✨ Analisar Parâmetros de Corte</span>
+                </button>
+            </div>
+
+            <!-- Área de Análise do LLM -->
+            <div id="analysis-output" class="hidden bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                <h3 class="text-xl font-semibold text-yellow-800 mb-2">Análise e Sugestões do Gemini</h3>
+                <div id="analysis-content" class="text-gray-700">
+                    <!-- Conteúdo do LLM será injetado aqui -->
+                </div>
+            </div>
+
+            <!-- Detalhes dos Cálculos -->
+            <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                <h3 class="text-xl font-semibold text-gray-700 mb-4">Detalhes Passo a Passo</h3>
+                <div id="details-output" class="space-y-3 text-sm text-gray-700">
+                    <!-- Detalhes serão injetados aqui -->
+                    <p class="text-gray-500 italic">Preencha os dados e clique em 'Calcular' para ver os passos.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Variáveis globais para o Gemini API
+        const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/";
+        const LLM_MODEL = "gemini-2.5-flash-preview-09-2025";
+        const TTS_MODEL = "gemini-2.5-flash-preview-tts";
+        const apiKey = ""; // Será injetado pelo Canvas
+
+        // --- Funções de Ajuda ---
+
+        // Função utilitária para formatar o número com base no seu valor.
+        function formatNumber(number) {
+            if (number >= 1) {
+                // Se o número for >= 1, usa 1 casa decimal
+                return number.toFixed(1).replace('.', ',');
+            } else {
+                // Se o número for < 1, usa 4 casas decimais
+                return number.toFixed(4).replace('.', ',');
+            }
+        }
+
+        // Função para simular o fetch com backoff exponencial
+        async function fetchWithBackoff(url, options, retries = 3) {
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (response.status === 429 && i < retries - 1) { // Too Many Requests
+                        const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        continue;
+                    }
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response;
+                } catch (error) {
+                    if (i === retries - 1) throw error;
+                    const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
+        }
+
+        function getInputs() {
+            return {
+                kc11: parseFloat(document.getElementById('kc11').value),
+                one_minus_mc: parseFloat(document.getElementById('one_minus_mc').value),
+                D: parseFloat(document.getElementById('D').value),
+                Z: parseInt(document.getElementById('Z').value),
+                ae: parseFloat(document.getElementById('ae').value),
+                ap: parseFloat(document.getElementById('ap').value),
+                vc: parseFloat(document.getElementById('vc').value),
+                fz: parseFloat(document.getElementById('fz').value),
+                kr_deg: parseFloat(document.getElementById('kr').value),
+                eta_percent: parseFloat(document.getElementById('eta').value),
+                material_name: document.getElementById('material_name').value.trim()
+            };
+        }
+
+        function validateInputs(inputs) {
+            const { kc11, one_minus_mc, D, Z, ae, ap, vc, fz, kr_deg, eta_percent } = inputs;
+            const eta = eta_percent / 100;
+            return ![kc11, one_minus_mc, D, Z, ae, ap, vc, fz, kr_deg, eta].some(isNaN) && D > 0 && ae <= D && eta > 0 && eta <= 1;
+        }
+
+        // --- Funções de Exibição/UI ---
+
+        function adicionarDetalhe(titulo, formula, resultado, unidade) {
+            const output = document.getElementById('details-output');
+            const detailDiv = document.createElement('div');
+            detailDiv.className = 'p-3 bg-white rounded-md border border-gray-100 shadow-sm';
+            
+            // Fórmulas codificadas diretamente em ASCII/Unicode simples
+            let formulaHtml = '';
+            
+            // Mapeamento de Fórmulas para visualização simples
+            if (titulo.includes("1. Ângulo de Contato Efetivo")) {
+                formulaHtml = ' &phi;s = arccos(1 - (2 * a_e) / D) ';
+            } else if (titulo.includes("2. N° de Dentes em Contato")) {
+                formulaHtml = ' Zc = CEIL( Z * (&phi;s / 360°) ) ';
+            } else if (titulo.includes("3. Espessura Média do Cavaco")) {
+                formulaHtml = ' h_m = (360° / &phi;s) * (f_z / PI) * (a_e / D) * sin(&kappa;r) ';
+            } else if (titulo.includes("4. Comprimento do Gume Ativo")) {
+                formulaHtml = ' b = a_p / sin(&kappa;r) ';
+            } else if (titulo.includes("5. Fator do Cavaco")) {
+                formulaHtml = ' h_m ^ (1-m_c) ';
+            } else if (titulo.includes("6. Força de Corte")) {
+                formulaHtml = ' F_c = k_c1.1 * b * Z_c * h_m ^ (1-m_c) ';
+            } else if (titulo.includes("7. Potência de Corte")) {
+                formulaHtml = ' P_c = (F_c * v_c) / 60000 ';
+            } else if (titulo.includes("8. Potência do Motor")) {
+                formulaHtml = ' P_m = P_c / &eta; ';
+            }
+            
+            // Aplica a formatação condicional
+            const formattedResult = formatNumber(resultado);
+
+            detailDiv.innerHTML = `
+                <p class="font-medium text-gray-800">${titulo.replace(/(\(\w{1,3}\))/g, ' ')}</p>
+                <p class="text-xs italic text-gray-500 math-formula">${formulaHtml}</p>
+                <p class="text-lg font-bold text-blue-600">${formattedResult} ${unidade}</p>
+            `;
+            output.appendChild(detailDiv);
+        }
+
+        function exibirResultadoFinal(resultado) {
+            const finalValueElement = document.getElementById('final-pm-value');
+            const resultBox = document.getElementById('pm-result');
+            const ttsButton = document.getElementById('tts-button');
+
+            if (isNaN(resultado) || !isFinite(resultado)) {
+                finalValueElement.textContent = 'ERRO DE CÁLCULO';
+                finalValueElement.className = 'text-3xl font-extrabold text-red-600';
+                resultBox.className = 'result-box p-4 rounded-lg shadow-md error flex justify-between items-center';
+                ttsButton.disabled = true;
+            } else {
+                finalValueElement.textContent = `${resultado.toFixed(2).replace('.', ',')} kW`;
+                finalValueElement.className = 'text-3xl font-extrabold text-blue-600';
+                resultBox.className = 'result-box p-4 rounded-lg shadow-md flex justify-between items-center';
+                ttsButton.disabled = false;
+            }
+        }
+
+        // --- Lógica Principal de Cálculo ---
+
+        function calcularPotencia() {
+            // Limpa resultados anteriores
+            document.getElementById('details-output').innerHTML = '';
+            document.getElementById('final-pm-value').textContent = '-- kW';
+            document.getElementById('tts-button').disabled = true;
+
+            const inputs = getInputs();
+            if (!validateInputs(inputs)) {
+                document.getElementById('details-output').innerHTML = '<p class="text-red-500 font-semibold">Erro: Verifique se todos os campos foram preenchidos corretamente e se os valores são válidos (Ex: D > 0, &eta; entre 0 e 100%).</p>';
+                exibirResultadoFinal(NaN);
+                return;
+            }
+
+            const { kc11, one_minus_mc, D, Z, ae, ap, vc, fz, kr_deg, eta_percent } = inputs;
+            const eta = eta_percent / 100;
+
+            const kr_rad = kr_deg * (Math.PI / 180); // Ângulo kr em radianos
+            
+            // 2. Cálculo do Ângulo de Contato Efetivo (phi_s)
+            const cos_phi_s = 1 - (2 * ae / D);
+            
+            // Revalidação do limite de fresamento periférico
+            if (cos_phi_s < -1) { 
+                document.getElementById('details-output').innerHTML = '<p class="text-red-500 font-semibold">Erro: a_e (largura radial) é maior que D/2. A fresa está entrando em contato frontal (ae > D/2), o que requer uma equação de phi_s diferente ou indica uma configuração incorreta para fresamento periférico.</p>';
+                exibirResultadoFinal(NaN);
+                return;
+            }
+
+            const phi_s_rad = Math.acos(Math.max(-1, Math.min(1, cos_phi_s))); // Garante que o argumento do arccos esteja entre -1 e 1
+            const phi_s_deg = phi_s_rad * (180 / Math.PI);
+            adicionarDetalhe("1. Ângulo de Contato Efetivo ($\phi_s$)", "", phi_s_deg, "graus");
+            
+            // 3. Cálculo do Número de Dentes em Contato (Zc)
+            const Zc_float = Z * (phi_s_deg / 360);
+            const Zc = Math.ceil(Zc_float); 
+            adicionarDetalhe("2. N° de Dentes em Contato ($Z_c$)", "", Zc_float, "dentes (Zc usado: " + Zc + ")");
+
+            // 4. Cálculo da Espessura Média do Cavaco (hm)
+            const hm = (360 / phi_s_deg) * (fz / Math.PI) * (ae / D) * Math.sin(kr_rad);
+            adicionarDetalhe("3. Espessura Média do Cavaco ($h_m$)", "", hm, "mm");
+
+            // 5. Comprimento do Gume Ativo (b)
+            const b = ap / Math.sin(kr_rad);
+            adicionarDetalhe("4. Comprimento do Gume Ativo ($b$)", "", b, "mm");
+
+            // 6. Cálculo da Força de Corte (Fc)
+            const hm_power = Math.pow(hm, one_minus_mc);
+            const Fc = kc11 * b * Zc * hm_power;
+            
+            adicionarDetalhe("5. Fator do Cavaco", "", hm_power, "fator");
+            adicionarDetalhe("6. Força de Corte ($F_c$)", "", Fc, "N");
+
+            // 7. Cálculo da Potência de Corte (Pc)
+            const Pc = (Fc * vc) / 60000;
+            adicionarDetalhe("7. Potência de Corte ($P_c$)", "", Pc, "kW");
+
+            // 8. Cálculo da Potência do Motor (Pm)
+            const Pm = Pc / eta;
+            adicionarDetalhe("8. Potência do Motor ($P_m$)", "", Pm, "kW");
+
+            // Exibe o resultado final
+            exibirResultadoFinal(Pm);
+        }
+
+        // --- Funções da API Gemini ---
+
+        async function analisarParametros() {
+            const analysisButton = document.getElementById('analysis-button');
+            const analysisText = document.getElementById('analysis-text');
+            const analysisOutput = document.getElementById('analysis-output');
+            const analysisContent = document.getElementById('analysis-content');
+
+            // 1. Coleta e Validação dos Dados
+            const inputs = getInputs();
+            const Pm_value = document.getElementById('final-pm-value').textContent;
+
+            if (!validateInputs(inputs) || Pm_value.includes('--')) {
+                analysisOutput.classList.remove('hidden');
+                analysisContent.innerHTML = '<p class="text-red-500">Por favor, preencha todos os parâmetros e execute o cálculo da potência antes de solicitar a análise.</p>';
+                return;
+            }
+
+            // 2. Configuração de UI para Loading
+            analysisButton.disabled = true;
+            analysisText.innerHTML = '<div class="loading-animation"></div> Analisando...';
+            analysisOutput.classList.remove('hidden');
+            analysisContent.innerHTML = '<p class="text-center text-gray-500">Gerando análise de usinagem...</p>';
+            
+            // PROMPT CORRIGIDO: Instruindo o LLM a usar abreviações ASCII
+            const systemPrompt = `Você é um engenheiro de produção especialista em usinagem. Sua tarefa é analisar um conjunto de parâmetros de fresamento periférico e fornecer um resumo conciso (em português).
+
+            REGRAS DE FORMATAÇÃO:
+            - NÃO use LaTeX, Markdown, ou qualquer formatação especial para variáveis (como $, \\, ^).
+            - Use apenas abreviações de texto simples para variáveis:
+              - Velocidade de corte: use 'vc'
+              - Avanço por dente: use 'fz'
+              - Largura radial: use 'ae'
+              - Profundidade axial: use 'ap'
+              - Diâmetro: use 'D'
+              - Potência do motor: use 'Pm'
+            - O resumo deve ter no máximo 4 parágrafos curtos.
+            
+            Avalie:
+            1. A adequação dos parâmetros (vc, fz) para o material fornecido.
+            2. A relação entre a largura radial de corte (ae) e o diâmetro da fresa (D).
+            3. Sugira uma otimização simples (aumentar ou diminuir um parâmetro) para melhorar a produtividade ou a vida útil da ferramenta.
+            
+            Use apenas as informações fornecidas e seu conhecimento técnico. Não mencione os valores de kc1.1 ou 1-mc.`;
+
+            const userQuery = `
+                Análise de parâmetros de fresamento:
+                Material: ${inputs.material_name}
+                Diâmetro da Fresa (D): ${inputs.D} mm
+                Nº de Dentes (Z): ${inputs.Z}
+                Largura Radial (ae): ${inputs.ae} mm
+                Profundidade Axial (ap): ${inputs.ap} mm
+                Velocidade de Corte (vc): ${inputs.vc} m/min
+                Avanço por Dente (fz): ${inputs.fz} mm
+                Potência de Motor Calculada (Pm): ${Pm_value}
+            `;
+
+            // 3. Chamada à API Gemini (Análise)
+            try {
+                const url = `${GEMINI_API_URL}${LLM_MODEL}:generateContent?key=${apiKey}`;
+                const payload = {
+                    contents: [{ parts: [{ text: userQuery }] }],
+                    tools: [{ "google_search": {} }],
+                    systemInstruction: { parts: [{ text: systemPrompt }] },
+                };
+
+                const response = await fetchWithBackoff(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+                const text = result.candidates?.[0]?.content?.parts?.[0]?.text || "Falha ao gerar análise.";
+                
+                // Usamos <p class="whitespace-pre-wrap"> para preservar as quebras de linha do LLM
+                analysisContent.innerHTML = `<p class="whitespace-pre-wrap">${text}</p>`;
+
+            } catch (error) {
+                console.error("Erro ao chamar a API Gemini para análise:", error);
+                analysisContent.innerHTML = `<p class="text-red-500">Erro na comunicação com a IA: ${error.message}. Tente novamente.</p>`;
+            } finally {
+                // 4. Reset da UI
+                analysisButton.disabled = false;
+                analysisText.textContent = '✨ Analisar Parâmetros de Corte';
+            }
+        }
+
+        async function falarResultado() {
+            const ttsButton = document.getElementById('tts-button');
+            const resultValue = document.getElementById('final-pm-value').textContent;
+            
+            if (ttsButton.disabled) return;
+
+            // 1. Configuração de UI para Loading
+            const originalText = ttsButton.innerHTML;
+            ttsButton.innerHTML = '<div class="loading-animation"></div> Gerando Áudio...';
+            ttsButton.disabled = true;
+
+            const textToSpeak = `A potência do motor calculada é de ${resultValue} quilowatts.`;
+            
+            // 2. Chamada à API Gemini (TTS)
+            try {
+                const url = `${GEMINI_API_URL}${TTS_MODEL}:generateContent?key=${apiKey}`;
+                
+                // Define a voz "Kore" como a voz predefinida
+                const payload = {
+                    contents: [{ parts: [{ text: textToSpeak }] }],
+                    generationConfig: {
+                        responseModalities: ["AUDIO"],
+                        speechConfig: {
+                            voiceConfig: {
+                                prebuiltVoiceConfig: { voiceName: "Kore" }
+                            }
+                        }
+                    },
+                };
+
+                const response = await fetchWithBackoff(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+                const part = result?.candidates?.[0]?.content?.parts?.[0];
+                const audioData = part?.inlineData?.data;
+                const mimeType = part?.inlineData?.mimeType;
+
+                if (audioData && mimeType && mimeType.startsWith("audio/")) {
+                    // Os utilitários pcmToWav e base64ToArrayBuffer precisam ser definidos para reproduzir PCM16
+                    const sampleRateMatch = mimeType.match(/rate=(\d+)/);
+                    const sampleRate = sampleRateMatch ? parseInt(sampleRateMatch[1], 10) : 16000;
+                    
+                    const pcmData = base64ToArrayBuffer(audioData);
+                    const pcm16 = new Int16Array(pcmData);
+                    const wavBlob = pcmToWav(pcm16, sampleRate);
+                    const audioUrl = URL.createObjectURL(wavBlob);
+                    
+                    const audio = new Audio(audioUrl);
+                    audio.play().catch(e => console.error("Erro ao reproduzir áudio:", e));
+                    
+                    audio.onended = () => {
+                         ttsButton.innerHTML = originalText;
+                         ttsButton.disabled = false;
+                    };
+
+                } else {
+                    console.error("Resposta TTS inválida ou sem dados de áudio.");
+                    ttsButton.innerHTML = "Erro TTS";
+                }
+            } catch (error) {
+                console.error("Erro ao chamar a API Gemini TTS:", error);
+                ttsButton.innerHTML = "Erro TTS";
+            } finally {
+                 // Em caso de erro, reabilita após um breve período para mostrar a mensagem de erro
+                 setTimeout(() => {
+                     if (ttsButton.innerHTML === "Erro TTS") {
+                         ttsButton.innerHTML = originalText;
+                         ttsButton.disabled = false;
+                     }
+                 }, 3000);
+            }
+        }
+
+        // --- Funções Utilitárias para Conversão de Áudio (PCM16 para WAV) ---
+        // Necessário para reproduzir o formato de áudio retornado pela API TTS.
+
+        // Converte base64 para ArrayBuffer
+        function base64ToArrayBuffer(base64) {
+            const binaryString = atob(base64);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            return bytes.buffer;
+        }
+
+        // Converte dados PCM16 para um Blob WAV reproduzível
+        function pcmToWav(pcm16, sampleRate) {
+            const numChannels = 1;
+            const bitsPerSample = 16;
+            const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
+            const blockAlign = numChannels * (bitsPerSample / 8);
+            const dataSize = pcm16.length * 2; // PCM16 é 2 bytes por amostra
+
+            const buffer = new ArrayBuffer(44 + dataSize);
+            const view = new DataView(buffer);
+            let offset = 0;
+
+            function writeString(str) {
+                for (let i = 0; i < str.length; i++) {
+                    view.setUint8(offset + i, str.charCodeAt(i));
+                }
+                offset += str.length;
+            }
+
+            function writeUint32(value) {
+                view.setUint32(offset, value, true); // Little endian
+                offset += 4;
+            }
+
+            function writeUint16(value) {
+                view.setUint16(offset, value, true); // Little endian
+                offset += 2;
+            }
+
+            // RIFF chunk
+            writeString('RIFF');
+            writeUint32(36 + dataSize); // ChunkSize
+            writeString('WAVE');
+
+            // fmt sub-chunk
+            writeString('fmt ');
+            writeUint32(16); // Subchunk1Size (16 for PCM)
+            writeUint16(1);  // AudioFormat (1 for PCM)
+            writeUint16(numChannels);
+            writeUint32(sampleRate);
+            writeUint32(byteRate);
+            writeUint16(blockAlign);
+            writeUint16(bitsPerSample);
+
+            // data sub-chunk
+            writeString('data');
+            writeUint32(dataSize);
+
+            // Write PCM data
+            for (let i = 0; i < pcm16.length; i++) {
+                view.setInt16(offset, pcm16[i], true); // Little endian, signed
+                offset += 2;
+            }
+
+            return new Blob([buffer], { type: 'audio/wav' });
+        }
+
+
+        // Executa o cálculo com os valores padrão ao carregar a página
+        window.onload = calcularPotencia;
+    </script>
+</body>
+</html>
