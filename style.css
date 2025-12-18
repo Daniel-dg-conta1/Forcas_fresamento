@@ -1,0 +1,46 @@
+/* Estilos personalizados */
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #f7f9fb;
+}
+.input-group label {
+    font-weight: 500;
+    color: #333;
+}
+.input-group input:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 1px #3b82f6;
+}
+.result-box {
+    background-color: #ffffff;
+    border-left: 4px solid #3b82f6;
+    transition: all 0.3s ease;
+}
+.result-box.error {
+    border-left: 4px solid #ef4444;
+}
+/* Estilo para fórmulas exibidas (sintaxe ASCII simples) */
+.math-formula {
+    font-family: monospace;
+    white-space: pre-wrap;
+    font-size: 0.85rem; /* Levemente menor para fórmulas longas */
+}
+/* Símbolos na interface principal */
+.symbol-phi::before { content: "\u03D5"; } /* Greek PHI Symbol */
+.symbol-kappa::before { content: "\u03BA"; } /* Greek KAPPA Symbol */
+.symbol-eta::before { content: "\u03B7"; } /* Greek ETA Symbol */
+
+/* Estilos de carregamento */
+.loading-animation {
+    border: 4px solid rgba(0, 0, 0, 0.1);
+    border-left-color: #3b82f6;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    animation: spin 1s linear infinite;
+    display: inline-block;
+    margin-right: 8px;
+}
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
